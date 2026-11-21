@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Unknot</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one calm column. Header = your level + today's single step; below it, your knots (problems) as cards you loosen step by step. */
+:root {
+  --bg: #EFF3F1;
+  --surface: #FFFFFF;
+  --sunk: #E4EAE7;
+  --ink: #1B2524;
+  --muted: #5A6866;
+  --line: #D3DCD8;
+  --rope: #2C6E68;
+  --rope-soft: #D5E7E4;
+  --accent: #D48A12;
+  --accent-ink: #2E1E00;
+  --good: #2F8556;
+  --warn: #B8461B;
+  --m1: #B8461B; --m2: #D48A12; --m3: #8E9A97; --m4: #4C9A8F; --m5: #2F8556;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101716; --surface: #182120; --sunk: #0C1211; --ink: #E3EBE9; --muted: #92A29F;
+    --line: #293533; --rope: #5DB2A9; --rope-soft: #1D3532; --accent: #F0B23E; --accent-ink: #241700;
+    --good: #5BC28A; --warn: #F08A5D;
+    --m1: #F08A5D; --m2: #F0B23E; --m3: #7D8B88; --m4: #5DB2A9; --m5: #5BC28A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101716; --surface: #182120; --sunk: #0C1211; --ink: #E3EBE9; --muted: #92A29F;
+  --line: #293533; --rope: #5DB2A9; --rope-soft: #1D3532; --accent: #F0B23E; --accent-ink: #241700;
+  --good: #5BC28A; --warn: #F08A5D;
+  --m1: #F08A5D; --m2: #F0B23E; --m3: #7D8B88; --m4: #5DB2A9; --m5: #5BC28A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.25rem; font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 700; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; border-radius: 999px; font-weight: 600; font-size: 0.9rem; }
+.btn:hover { border-color: var(--rope); }
+.btn.primary { background: var(--rope); border-color: var(--rope); color: var(--surface); }
+.btn.gold { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--warn); }
+.btn.sm { padding: 5px 11px; font-size: 0.82rem; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.spread { justify-content: space-between; }
+
+/* Top bar */
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.brand p { color: var(--muted); margin-top: 4px; }
+.knotmark { display: inline-block; width: 30px; height: 30px; vertical-align: -5px; margin-right: 6px; }
+
+/* Player panel */
+.player { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 16px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat b { display: block; font-family: var(--f-display); font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+.xpbar { height: 10px; border-radius: 999px; background: var(--sunk); overflow: hidden; }
+.xpbar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .6s ease; }
+.moods { display: flex; gap: 6px; flex-wrap: wrap; }
+.mood { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 5px 11px; font-size: 0.85rem; }
+.mood .dot { width: 10px; height: 10px; border-radius: 50%; }
+.mood[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); font-weight: 600; }
+.moodstrip { display: flex; gap: 3px; align-items: flex-end; }
+.moodstrip span { width: 14px; height: 14px; border-radius: 3px; background: var(--sunk); }
+
+/* Today's step */
+.today { background: var(--rope); color: var(--surface); border-radius: var(--r); padding: 20px; display: grid; gap: 10px; }
+.today .label { color: var(--rope-soft); }
+.today h2 { font-size: 1.45rem; }
+.today .from { opacity: .85; font-size: .9rem; }
+.today .btn { background: var(--surface); color: var(--rope); border-color: var(--surface); }
+.today .btn.ghost { background: transparent; color: var(--surface); border-color: color-mix(in srgb, var(--surface) 45%, transparent); }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; background: var(--sunk); padding: 4px; border-radius: 999px; width: fit-content; max-width: 100%; overflow-x: auto; }
+.tab { border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; font-weight: 600; font-size: .88rem; color: var(--muted); white-space: nowrap; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); }
+
+/* Add form */
+.add { background: var(--surface); border: 1px dashed var(--rope); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field input, .field select, .field textarea, .stepadd input {
+  width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 11px;
+}
+.field textarea { resize: vertical; min-height: 64px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.weightpick { display: flex; gap: 4px; }
+.weightpick button { flex: 1; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 7px 0; font-family: var(--f-mono); font-weight: 700; }
+.weightpick button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Knot cards */
+.list { display: grid; gap: 14px; }
+.knot { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; position: relative; }
+.knot.example { border-style: dashed; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: .75rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.chip.ex { background: var(--accent); color: var(--accent-ink); }
+.weight { display: inline-flex; gap: 2px; vertical-align: middle; }
+.weight i { width: 7px; height: 12px; border-radius: 2px; background: var(--line); }
+.weight i.on { background: var(--accent); }
+.rope { display: grid; gap: 5px; }
+.ropebar { height: 12px; border-radius: 999px; background: repeating-linear-gradient(135deg, var(--rope) 0 6px, color-mix(in srgb, var(--rope) 70%, var(--surface)) 6px 12px); position: relative; overflow: hidden; }
+.ropebar i { position: absolute; inset: 0 auto 0 0; background: var(--rope-soft); transition: width .6s ease; border-right: 2px solid var(--surface); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.step { display: flex; gap: 10px; align-items: flex-start; padding: 6px 4px; border-radius: 8px; }
+.step:hover { background: var(--bg); }
+.step input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--rope); flex: none; }
+.step span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.step.done span { text-decoration: line-through; color: var(--muted); }
+.step .x { border: 0; background: none; color: var(--muted); padding: 0 4px; font-size: 1.1rem; line-height: 1; }
+.stepadd { display: flex; gap: 8px; }
+.stepadd input { flex: 1; min-width: 0; }
+.reframe { background: var(--bg); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+.confirm { background: var(--sunk); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+.closed-note { font-size: .9rem; color: var(--muted); }
+.empty { text-align: center; padding: 28px 16px; border: 1px dashed var(--line); border-radius: var(--r); color: var(--muted); }
+
+/* Example banner */
+.banner { background: var(--surface); border-left: 4px solid var(--accent); border-radius: 10px; padding: 12px 14px; }
+
+/* Footer tools */
+.tools { display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+.tools textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size: .78rem; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px; }
+.help { font-size: .86rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+.help a { color: var(--rope); }
+
+/* Breathing overlay */
+.overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 94%, transparent); display: grid; place-items: center; z-index: 50; padding: 24px; }
+.breath { display: grid; gap: 22px; justify-items: center; text-align: center; }
+.circle { width: 200px; height: 200px; border-radius: 50%; background: var(--rope-soft); border: 3px solid var(--rope); display: grid; place-items: center; transform: scale(.55); transition: transform 4s ease-in-out; }
+.circle b { font-family: var(--f-display); font-size: 1.3rem; color: var(--rope); }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 600; opacity: 0; transition: .3s; z-index: 60; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+canvas#fx { position: fixed; inset: 0; pointer-events: none; z-index: 70; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 1.7rem; }
+  .grid3 { grid-template-columns: 1fr; }
+  .stat b { font-size: 1.25rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><svg class="knotmark" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 20c6 0 8-12 14-12s6 9 1 9-5-9 1-9 9 12 10 12" fill="none" stroke="var(--rope)" stroke-width="3" stroke-linecap="round"/></svg>Unknot</h1>
+      <p>Every problem is a knot. Loosen it one small pull at a time.</p>
+    </div>
+    <button class="btn" data-action="breathe">Breathe for a minute</button>
+  </header>
+
+  <section class="player" aria-label="Your progress">
+    <div class="stats">
+      <div class="stat"><span class="label">Level</span><b id="lvl">1</b><span class="muted" id="lvlname"></span></div>
+      <div class="stat"><span class="label">Streak</span><b id="streak">0</b><span class="muted">days in a row</span></div>
+      <div class="stat"><span class="label">Untied</span><b id="untied">0</b><span class="muted">knots so far</span></div>
+    </div>
+    <div class="rope">
+      <div class="row spread"><span class="label">Experience</span><span class="mono muted" id="xptext"></span></div>
+      <div class="xpbar"><i id="xpfill" style="width:0"></i></div>
+    </div>
+    <div class="row spread">
+      <div style="display:grid;gap:6px">
+        <span class="label">How are you feeling today?</span>
+        <div class="moods" id="moods"></div>
+      </div>
+      <div style="display:grid;gap:6px">
+        <span class="label">Last 14 days</span>
+        <div class="moodstrip" id="moodstrip"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="today" id="today" aria-live="polite"></section>
+
+  <div class="banner" id="exbanner" hidden>
+    <div class="row spread">
+      <p><b>These two knots are examples</b> to show how it works. Add your own, then clear these.</p>
+      <button class="btn sm" data-action="clear-examples">Clear examples</button>
+    </div>
+  </div>
+
+  <section style="display:grid;gap:14px">
+    <div class="row spread">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="active">Working on</button>
+        <button class="tab" role="tab" data-tab="untied">Untied</button>
+        <button class="tab" role="tab" data-tab="letgo">Let go</button>
+      </div>
+      <button class="btn gold" data-action="toggle-add">+ New knot</button>
+    </div>
+
+    <form class="add" id="addform" hidden>
+      <h3>What's weighing on you?</h3>
+      <div class="field">
+        <label class="label" for="k-title">Name the knot</label>
+        <input id="k-title" maxlength="120" placeholder="e.g. I keep putting off my tax return" required>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label class="label" for="k-area">Area of life</label>
+          <select id="k-area"></select>
+        </div>
+        <div class="field">
+          <span class="label">How heavy does it feel?</span>
+          <div class="weightpick" id="k-weight"></div>
+        </div>
+        <div class="field">
+          <label class="label" for="k-control">Is it in your control?</label>
+          <select id="k-control">
+            <option value="yes">Mostly yes</option>
+            <option value="partly" selected>Partly</option>
+            <option value="no">Mostly no</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="k-first">The tiniest first step (optional)</label>
+        <input id="k-first" maxlength="160" placeholder="Something you could do in 5 minutes">
+      </div>
+      <div class="row">
+        <button class="btn primary" type="submit">Add knot</button>
+        <button class="btn ghost" type="button" data-action="toggle-add">Cancel</button>
+      </div>
+    </form>
+
+    <div class="list" id="list"></div>
+  </section>
+
+  <section class="tools">
+    <h3>Keep your data safe</h3>
+    <p class="muted">Everything is saved only in this browser on this device. Nothing is sent anywhere. Copy a backup now and then, and paste it back here to restore or move to another device.</p>
+    <textarea id="backup" spellcheck="false" placeholder="Your backup appears here, or paste one to restore" aria-label="Backup data"></textarea>
+    <div class="row">
+      <button class="btn" data-action="export">Copy backup</button>
+      <button class="btn" data-action="import">Restore from pasted backup</button>
+      <button class="btn danger" data-action="reset">Erase everything</button>
+    </div>
+    <div class="confirm" id="resetconfirm" hidden>
+      <p><b>Erase all knots, XP and moods?</b> This can't be undone.</p>
+      <div class="row"><button class="btn danger" data-action="reset-yes">Yes, erase</button><button class="btn ghost" data-action="reset-no">Keep my data</button></div>
+    </div>
+    <p class="help">Unknot is a self-help tool, not therapy. If you ever feel unsafe or think about hurting yourself, please reach out now to someone you trust or your local emergency number. You can find a free, confidential helpline in your country at <a href="https://findahelpline.com" target="_blank" rel="noopener">findahelpline.com</a>.</p>
+  </section>
+</div>
+
+<div class="overlay" id="breathe" hidden>
+  <div class="breath">
+    <span class="label">Box breathing · 4 rounds</span>
+    <div class="circle" id="circle"><b id="cue">Ready</b></div>
+    <p class="muted" id="breathsub">In for 4, hold for 4, out for 4, hold for 4.</p>
+    <button class="btn" data-action="breathe-stop">I'm done</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "unknot.v1";
+  var AREAS = ["Mind", "Body & health", "Money", "Work / study", "People", "Home", "Other"];
+  var MOODS = [["Rough", "--m1"], ["Low", "--m2"], ["Okay", "--m3"], ["Good", "--m4"], ["Great", "--m5"]];
+  var LEVELS = ["Loose thread", "Knot-picker", "Untangler", "Steady hands", "Rope-wise", "Calm sailor", "Knot master"];
+  var XP = { step: 10, reframe: 15, mood: 5, breathe: 5, untie: 50, letgo: 30, add: 5 };
+
+  function today(d) { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function sample() {
+    var t = Date.now();
+    return {
+      xp: 0, days: [], moods: {}, breathed: {}, rewarded: {},
+      knots: [
+        { id: uid(), example: true, title: "Exams in 3 weeks and I haven't started revising", area: "Work / study", weight: 4, control: "yes", status: "active", created: t,
+          steps: [
+            { id: uid(), text: "List every subject and topic on one page", done: true },
+            { id: uid(), text: "Pick the weakest topic and study it for 25 minutes", done: false },
+            { id: uid(), text: "Ask a classmate to quiz me on Friday", done: false }
+          ], reframe: { worst: "", likely: "", control: "", friend: "" } },
+        { id: uid(), example: true, title: "Things feel awkward with my best friend", area: "People", weight: 3, control: "partly", status: "active", created: t,
+          steps: [ { id: uid(), text: "Send a short, honest message: \"Can we talk this week?\"", done: false } ],
+          reframe: { worst: "", likely: "We both feel weird and want to fix it.", control: "", friend: "" } }
+      ]
+    };
+  }
+
+  var S;
+  try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+  if (!S || !Array.isArray(S.knots)) S = sample();
+  ["days", "knots"].forEach(function (k) { if (!Array.isArray(S[k])) S[k] = []; });
+  ["moods", "breathed", "rewarded"].forEach(function (k) { if (!S[k] || typeof S[k] !== "object") S[k] = {}; });
+  S.xp = +S.xp || 0;
+
+  var ui = { tab: "active", open: {}, reframe: {}, confirm: {}, weight: 3, skip: 0 };
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function find(id) { for (var i = 0; i < S.knots.length; i++) if (S.knots[i].id === id) return S.knots[i]; }
+  function markDay() { var d = today(); if (S.days.indexOf(d) < 0) S.days.push(d); }
+
+  function level(xp) { var l = Math.floor(Math.sqrt(xp / 40)) + 1; return l; }
+  function xpFor(l) { return 40 * (l - 1) * (l - 1); }
+
+  function gain(n, msg) {
+    var before = level(S.xp);
+    S.xp += n; markDay(); save();
+    var after = level(S.xp);
+    if (after > before) { toast("Level " + after + "! You're now a " + LEVELS[Math.min(after - 1, LEVELS.length - 1)] + "."); burst(140); }
+    else toast("+" + n + " XP · " + msg);
+  }
+
+  function streak() {
+    var set = {}; S.days.forEach(function (d) { set[d] = 1; });
+    var d = new Date(), n = 0;
+    if (!set[today(d)]) d.setDate(d.getDate() - 1);
+    while (set[today(d)]) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+
+  // ---------- render ----------
+  var $ = function (id) { return document.getElementById(id); };
+
+  function renderPlayer() {
+    var l = level(S.xp), lo = xpFor(l), hi = xpFor(l + 1);
+    $("lvl").textContent = l;
+    $("lvlname").textContent = LEVELS[Math.min(l - 1, LEVELS.length - 1)];
+    $("streak").textContent = streak();
+    $("untied").textContent = S.knots.filter(function (k) { return k.status === "untied" && !k.example; }).length;
+    $("xptext").textContent = S.xp + " XP · " + (hi - S.xp) + " to level " + (l + 1);
+    $("xpfill").style.width = Math.round(((S.xp - lo) / (hi - lo)) * 100) + "%";
+
+    var m = S.moods[today()];
+    $("moods").innerHTML = MOODS.map(function (x, i) {
+      return '<button class="mood" data-action="mood" data-v="' + (i + 1) + '" aria-pressed="' + (m === i + 1) + '"><span class="dot" style="background:var(' + x[1] + ')"></span>' + x[0] + "</button>";
+    }).join("");
+    var strip = "", d = new Date();
+    d.setDate(d.getDate() - 13);
+    for (var i = 0; i < 14; i++) {
+      var v = S.moods[today(d)];
+      strip += '<span title="' + today(d) + (v ? ": " + MOODS[v - 1][0] : ": no check-in") + '"' + (v ? ' style="background:var(' + MOODS[v - 1][1] + ')"' : "") + "></span>";
+      d.setDate(d.getDate() + 1);
+    }
+    $("moodstrip").innerHTML = strip;
+  }
+
+  function nextSteps() {
+    var out = [];
+    S.knots.filter(function (k) { return k.status === "active"; })
+      .sort(function (a, b) { return b.weight - a.weight; })
+      .forEach(function (k) {
+        var s = k.steps.filter(function (x) { return !x.done; })[0];
+        out.push({ knot: k, step: s });
+      });
+    return out;
+  }
+
+  function renderToday() {
+    var list = nextSteps(), el = $("today");
+    if (!list.length) {
+      el.innerHTML = '<span class="label">Today\'s one step</span><h2>No knots right now. Enjoy the calm.</h2><p class="from">When something starts bothering you, add it as a new knot.</p>';
+      return;
+    }
+    var pick = list[ui.skip % list.length];
+    if (pick.step) {
+      el.innerHTML = '<span class="label">Today\'s one step</span><h2>' + esc(pick.step.text) + '</h2><p class="from">Loosens: ' + esc(pick.knot.title) + '</p>' +
+        '<div class="row"><button class="btn" data-action="today-done" data-k="' + pick.knot.id + '" data-s="' + pick.step.id + '">I did it (+' + XP.step + ' XP)</button>' +
+        (list.length > 1 ? '<button class="btn ghost" data-action="skip">Show me another</button>' : "") + "</div>";
+    } else {
+      el.innerHTML = '<span class="label">Today\'s one step</span><h2>Decide the tiniest next step</h2><p class="from">For: ' + esc(pick.knot.title) + '. Make it something you could do in 5 minutes.</p>' +
+        '<div class="row"><button class="btn" data-action="open" data-k="' + pick.knot.id + '">Add a step</button>' +
+        (list.length > 1 ? '<button class="btn ghost" data-action="skip">Show me another</button>' : "") + "</div>";
+    }
+  }
+
+  function weightHtml(w) { var s = '<span class="weight" title="Heaviness ' + w + ' of 5">'; for (var i = 1; i <= 5; i++) s += '<i class="' + (i <= w ? "on" : "") + '"></i>'; return s + "</span>"; }
+  var CONTROL = { yes: "In my control", partly: "Partly in my control", no: "Out of my control" };
+
+  function knotHtml(k) {
+    var total = k.steps.length, done = k.steps.filter(function (s) { return s.done; }).length;
+    var loose = total ? Math.round((done / total) * 100) : 0;
+    var open = ui.open[k.id] || k.status === "active";
+    var c = ui.confirm[k.id];
+    var h = '<article class="knot' + (k.example ? " example" : "") + '">';
+    h += '<div class="row spread" style="align-items:flex-start"><div style="display:grid;gap:6px;min-width:0;flex:1"><h3 style="overflow-wrap:anywhere">' + esc(k.title) + '</h3>';
+    h += '<div class="chips">' + (k.example ? '<span class="chip ex">Example</span>' : "") + '<span class="chip">' + esc(k.area) + '</span><span class="chip">' + CONTROL[k.control] + '</span><span class="chip">Heavy ' + weightHtml(k.weight) + "</span></div></div></div>";
+
+    if (k.status === "active") {
+      h += '<div class="rope"><div class="row spread"><span class="label">' + (total ? "Loosened " + loose + "%" : "Still tight: add a first step") + '</span><span class="mono muted">' + done + "/" + total + ' steps</span></div><div class="ropebar"><i style="width:' + loose + '%"></i></div></div>';
+    } else {
+      h += '<p class="closed-note">' + (k.status === "untied" ? "Untied" : "Let go") + " on " + new Date(k.closed).toLocaleDateString() + (k.note ? ": " + esc(k.note) : "") + "</p>";
+    }
+
+    if (open) {
+      h += '<ul class="steps">' + k.steps.map(function (s) {
+        return '<li class="step' + (s.done ? " done" : "") + '"><input type="checkbox" id="s-' + s.id + '" data-action="step" data-k="' + k.id + '" data-s="' + s.id + '"' + (s.done ? " checked" : "") + (k.status !== "active" ? " disabled" : "") + '><label for="s-' + s.id + '" style="flex:1;min-width:0"><span>' + esc(s.text) + "</span></label>" +
+          (k.status === "active" ? '<button class="x" data-action="del-step" data-k="' + k.id + '" data-s="' + s.id + '" aria-label="Remove step">×</button>' : "") + "</li>";
+      }).join("") + "</ul>";
+      if (k.status === "active") {
+        h += '<form class="stepadd" data-k="' + k.id + '"><input id="add-' + k.id + '" maxlength="160" placeholder="Add a small step…" aria-label="New step"><button class="btn sm primary" type="submit">Add</button></form>';
+      }
+    }
+
+    if (ui.reframe[k.id]) {
+      var r = k.reframe || {};
+      h += '<div class="reframe"><span class="label">Look at it from another angle</span>' +
+        rf(k.id, "worst", "What's the worst that could realistically happen?", r.worst) +
+        rf(k.id, "likely", "What will most likely happen?", r.likely) +
+        rf(k.id, "control", "Which part of this can I actually control?", r.control) +
+        rf(k.id, "friend", "What would I tell a friend with this problem?", r.friend) +
+        '<div class="row"><button class="btn sm primary" data-action="save-reframe" data-k="' + k.id + '">Save thoughts' + (S.rewarded["rf-" + k.id] ? "" : " (+" + XP.reframe + " XP)") + '</button><button class="btn sm ghost" data-action="reframe" data-k="' + k.id + '">Close</button></div></div>';
+    }
+
+    if (c) {
+      var msg = { untie: "Nice. How did you untie it? (optional)", letgo: "Letting go of what you can't control is a real win. Any note for yourself? (optional)", del: "Delete this knot for good?" }[c];
+      h += '<div class="confirm"><p><b>' + msg + "</b></p>" + (c !== "del" ? '<input id="note-' + k.id + '" maxlength="200" style="border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;width:100%">' : "") +
+        '<div class="row"><button class="btn sm ' + (c === "del" ? "danger" : "primary") + '" data-action="confirm-yes" data-k="' + k.id + '">' + { untie: "Mark untied (+" + (XP.untie + k.weight * 10) + " XP)", letgo: "Let it go (+" + XP.letgo + " XP)", del: "Delete" }[c] + '</button><button class="btn sm ghost" data-action="confirm-no" data-k="' + k.id + '">Cancel</button></div></div>';
+    }
+
+    h += '<div class="row">';
+    if (k.status === "active") {
+      h += '<button class="btn sm gold" data-action="untie" data-k="' + k.id + '">Untied it</button>';
+      h += '<button class="btn sm" data-action="reframe" data-k="' + k.id + '">Reframe</button>';
+      h += '<button class="btn sm" data-action="letgo" data-k="' + k.id + '">Let it go</button>';
+    } else {
+      h += '<button class="btn sm" data-action="toggle-open" data-k="' + k.id + '">' + (open ? "Hide steps" : "Show steps") + "</button>";
+      h += '<button class="btn sm" data-action="reopen" data-k="' + k.id + '">It came back</button>';
+    }
+    h += '<button class="btn sm ghost danger" data-action="del" data-k="' + k.id + '">Delete</button></div>';
+    return h + "</article>";
+  }
+  function rf(id, f, q, v) { return '<div class="field"><label class="label" for="rf-' + f + "-" + id + '">' + q + '</label><textarea id="rf-' + f + "-" + id + '" data-f="' + f + '" maxlength="600">' + esc(v) + "</textarea></div>"; }
+
+  function renderList() {
+    document.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", t.dataset.tab === ui.tab); });
+    var ks = S.knots.filter(function (k) { return k.status === ui.tab; });
+    if (ui.tab === "active") ks.sort(function (a, b) { return b.weight - a.weight; });
+    else ks.sort(function (a, b) { return (b.closed || 0) - (a.closed || 0); });
+    var empty = { active: "No knots yet. Tap “+ New knot” to name the first thing on your mind.", untied: "Knots you untie land here. They're proof you can do hard things.", letgo: "Things you chose to stop carrying land here." }[ui.tab];
+    $("list").innerHTML = ks.length ? ks.map(knotHtml).join("") : '<div class="empty">' + empty + "</div>";
+    $("exbanner").hidden = !S.knots.some(function (k) { return k.example; });
+  }
+
+  function render() { renderPlayer(); renderToday(); renderList(); }
+
+  // ---------- add form ----------
+  $("k-area").innerHTML = AREAS.map(function (a) { return "<option>" + a + "</option>"; }).join("");
+  function renderWeight() {
+    $("k-weight").innerHTML = [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" data-action="weight" data-v="' + n + '" aria-pressed="' + (ui.weight === n) + '" aria-label="Heaviness ' + n + '">' + n + "</button>"; }).join("");
+  }
+  renderWeight();
+
+  $("addform").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var title = $("k-title").value.trim(); if (!title) return;
+    var first = $("k-first").value.trim();
+    S.knots.push({ id: uid(), title: title, area: $("k-area").value, weight: ui.weight, control: $("k-control").value, status: "active", created: Date.now(),
+      steps: first ? [{ id: uid(), text: first, done: false }] : [], reframe: { worst: "", likely: "", control: "", friend: "" } });
+    $("addform").reset(); ui.weight = 3; renderWeight(); $("addform").hidden = true; ui.tab = "active";
+    gain(XP.add, "naming it is the first step");
+    render();
+  });
+
+  document.addEventListener("submit", function (e) {
+    var f = e.target.closest(".stepadd"); if (!f) return;
+    e.preventDefault();
+    var k = find(f.dataset.k), inp = f.querySelector("input"), v = inp.value.trim();
+    if (!k || !v) return;
+    k.steps.push({ id: uid(), text: v, done: false }); save(); render();
+    var again = $("add-" + k.id); if (again) again.focus();
+  });
+
+  // ---------- actions ----------
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-action]"); if (!t) return;
+    var a = t.dataset.action, k = t.dataset.k ? find(t.dataset.k) : null;
+    if (t.dataset.tab) return;
+    switch (a) {
+      case "toggle-add": $("addform").hidden = !$("addform").hidden; if (!$("addform").hidden) $("k-title").focus(); break;
+      case "weight": ui.weight = +t.dataset.v; renderWeight(); break;
+      case "mood": {
+        var first = !S.moods[today()]; S.moods[today()] = +t.dataset.v;
+        if (first) gain(XP.mood, "checked in with yourself"); else save();
+        if (+t.dataset.v <= 2) toast("Rough days happen. One small step, or just breathe. Both count.");
+        renderPlayer(); break;
+      }
+      case "today-done": completeStep(k, t.dataset.s, true); break;
+      case "skip": ui.skip++; renderToday(); break;
+      case "open": ui.tab = "active"; ui.open[k.id] = true; render(); var i = $("add-" + k.id); if (i) { i.scrollIntoView({ block: "center", behavior: "smooth" }); i.focus(); } break;
+      case "del-step": k.steps = k.steps.filter(function (s) { return s.id !== t.dataset.s; }); save(); render(); break;
+      case "reframe": ui.reframe[k.id] = !ui.reframe[k.id]; renderList(); break;
+      case "save-reframe": {
+        k.reframe = k.reframe || {};
+        document.querySelectorAll('[id^="rf-"][id$="-' + k.id + '"]').forEach(function (ta) { k.reframe[ta.dataset.f] = ta.value.trim(); });
+        ui.reframe[k.id] = false;
+        if (!S.rewarded["rf-" + k.id] && Object.keys(k.reframe).some(function (f) { return k.reframe[f]; })) { S.rewarded["rf-" + k.id] = 1; gain(XP.reframe, "new perspective"); }
+        else { save(); toast("Thoughts saved"); }
+        render(); break;
+      }
+      case "untie": case "letgo": case "del": ui.confirm[k.id] = a === "untie" ? "untie" : a === "letgo" ? "letgo" : "del"; renderList(); var n = $("note-" + k.id); if (n) n.focus(); break;
+      case "confirm-no": delete ui.confirm[k.id]; renderList(); break;
+      case "confirm-yes": {
+        var kind = ui.confirm[k.id]; delete ui.confirm[k.id];
+        if (kind === "del") { S.knots = S.knots.filter(function (x) { return x !== k; }); save(); toast("Knot deleted"); render(); break; }
+        var note = ($("note-" + k.id) || {}).value || "";
+        k.status = kind === "untie" ? "untied" : "letgo"; k.closed = Date.now(); k.note = note.trim();
+        var key = kind + "-" + k.id;
+        if (!S.rewarded[key]) { S.rewarded[key] = 1; gain(kind === "untie" ? XP.untie + k.weight * 10 : XP.letgo, kind === "untie" ? "knot untied!" : "weight lifted"); }
+        else save();
+        burst(kind === "untie" ? 220 : 90);
+        render(); break;
+      }
+      case "toggle-open": ui.open[k.id] = !ui.open[k.id]; renderList(); break;
+      case "reopen": k.status = "active"; k.closed = null; save(); ui.tab = "active"; toast("Back on the list. You untied it once, you can again."); render(); break;
+      case "clear-examples": S.knots = S.knots.filter(function (x) { return !x.example; }); save(); render(); break;
+      case "breathe": startBreath(); break;
+      case "breathe-stop": stopBreath(); break;
+      case "export": {
+        var json = JSON.stringify(S); $("backup").value = json; $("backup").select();
+        try { navigator.clipboard.writeText(json).then(function () { toast("Backup copied. Paste it somewhere safe, like a note to yourself."); }, function () { toast("Backup is selected below. Copy it manually."); }); }
+        catch (err) { toast("Backup is selected below. Copy it manually."); }
+        break;
+      }
+      case "import": {
+        try {
+          var d = JSON.parse($("backup").value);
+          if (!d || !Array.isArray(d.knots)) throw new Error();
+          S = d; ["moods", "breathed", "rewarded"].forEach(function (x) { if (!S[x]) S[x] = {}; }); if (!Array.isArray(S.days)) S.days = []; S.xp = +S.xp || 0;
+          save(); render(); toast("Backup restored");
+        } catch (err) { toast("That doesn't look like an Unknot backup. Paste the full text you copied."); }
+        break;
+      }
+      case "reset": $("resetconfirm").hidden = false; break;
+      case "reset-no": $("resetconfirm").hidden = true; break;
+      case "reset-yes": S = { xp: 0, days: [], moods: {}, breathed: {}, rewarded: {}, knots: [] }; save(); $("resetconfirm").hidden = true; render(); toast("Fresh start"); break;
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-tab]"); if (!t) return;
+    ui.tab = t.dataset.tab; renderList();
+  });
+
+  document.addEventListener("change", function (e) {
+    var t = e.target; if (t.dataset.action !== "step") return;
+    var k = find(t.dataset.k); if (!k) return;
+    if (t.checked) completeStep(k, t.dataset.s, false);
+    else { k.steps.forEach(function (s) { if (s.id === t.dataset.s) s.done = false; }); save(); render(); }
+  });
+
+  function completeStep(k, sid, fromToday) {
+    if (!k) return;
+    var s = k.steps.filter(function (x) { return x.id === sid; })[0]; if (!s || s.done) return;
+    s.done = true; s.doneAt = Date.now();
+    var key = "st-" + sid;
+    if (!S.rewarded[key]) { S.rewarded[key] = 1; gain(XP.step, "one pull looser"); } else save();
+    burst(40);
+    if (fromToday) ui.skip = 0;
+    var left = k.steps.filter(function (x) { return !x.done; }).length;
+    if (!left) setTimeout(function () { toast("Every step done. Is the knot untied? Tap “Untied it”."); }, 1600);
+    render();
+  }
+
+  // ---------- breathing ----------
+  var bt = null, bstart = 0;
+  function startBreath() {
+    $("breathe").hidden = false; bstart = Date.now();
+    var phases = [["Breathe in", 1], ["Hold", 1], ["Breathe out", .55], ["Hold", .55]], i = 0, rounds = 0;
+    function tick() {
+      var p = phases[i % 4];
+      $("cue").textContent = p[0]; $("circle").style.transform = "scale(" + p[1] + ")";
+      i++; if (i % 4 === 0) rounds++;
+      $("breathsub").textContent = "Round " + Math.min(rounds + 1, 4) + " of 4";
+      if (rounds >= 4) { bt = setTimeout(function () { $("cue").textContent = "Well done"; stopBreath(true); }, 4000); return; }
+      bt = setTimeout(tick, 4000);
+    }
+    $("circle").style.transform = "scale(.55)"; $("cue").textContent = "Ready";
+    bt = setTimeout(tick, 600);
+  }
+  function stopBreath(finished) {
+    clearTimeout(bt);
+    var long = finished === true || Date.now() - bstart > 30000;
+    setTimeout(function () { $("breathe").hidden = true; }, finished === true ? 1200 : 0);
+    if (long && !S.breathed[today()]) { S.breathed[today()] = 1; gain(XP.breathe, "calm mind"); renderPlayer(); }
+  }
+
+  // ---------- toast & confetti ----------
+  var tt;
+  function toast(m) { var el = $("toast"); el.textContent = m; el.classList.add("show"); clearTimeout(tt); tt = setTimeout(function () { el.classList.remove("show"); }, 2600); }
+
+  var cv = $("fx"), cx = cv.getContext("2d"), parts = [], running = false;
+  function size() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px"; }
+  size(); addEventListener("resize", size);
+  function burst(n) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var cs = getComputedStyle(document.documentElement);
+    var cols = ["--accent", "--rope", "--good", "--m2"].map(function (v) { return cs.getPropertyValue(v).trim() || "#D48A12"; });
+    for (var i = 0; i < n; i++) parts.push({ x: innerWidth / 2, y: innerHeight * 0.35, vx: (Math.random() - .5) * 12, vy: Math.random() * -11 - 3, r: Math.random() * 360, vr: (Math.random() - .5) * 12, c: cols[i % cols.length], life: 110 + Math.random() * 40, w: 5 + Math.random() * 5 });
+    if (!running) { running = true; requestAnimationFrame(frame); }
+  }
+  function frame() {
+    var dpr = devicePixelRatio; cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, innerWidth, innerHeight);
+    parts = parts.filter(function (p) { return p.life-- > 0 && p.y < innerHeight + 20; });
+    parts.forEach(function (p) {
+      p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r * Math.PI / 180); cx.fillStyle = p.c; cx.globalAlpha = Math.min(1, p.life / 40); cx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); cx.restore();
+    });
+    if (parts.length) requestAnimationFrame(frame); else { running = false; cx.clearRect(0, 0, innerWidth, innerHeight); }
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
